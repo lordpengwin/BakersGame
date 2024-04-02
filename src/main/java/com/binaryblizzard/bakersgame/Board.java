@@ -13,6 +13,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.logging.Logger;
 
 /** A class representing the state of a Bakers Game board. */
@@ -37,15 +38,19 @@ public class Board {
 
     /** A list of pending moves. */
 
-    private List<Move> pendingMoves = new ArrayList<>(110);
+    private final List<Move> pendingMoves = new ArrayList<>(110);
 
     /** A list of moves that have been tried. */
 
-    private List<Move> triedMoves = new ArrayList<>(110);
+    private final List<Move> triedMoves = new ArrayList<>(110);
 
     /** The sequence of moves that produced this board. */
 
     private List<Move> solution = new ArrayList<>(110);
+
+    /** A Random number used to shuffle lists. */
+
+    private Random random = new Random();
 
     /**
      * Create a Board.
@@ -199,7 +204,7 @@ public class Board {
         if (pendingMoves.isEmpty())
             throw new IllegalStateException("Board has no more moves available");
         Move move = pendingMoves.remove(0);
-//        triedMoves.add(move);
+        triedMoves.add(move);
 //        LOG.info(move.toString());
 
         // Make a copy of this board
@@ -345,10 +350,11 @@ public class Board {
      * Create a list of possible moves from the current board state. This updates the pendingMoves list for this board.
      */
 
-    private void computePendingMoves() {
+    public void computePendingMoves() {
 
         // Check each of the available cards to see if they can go in the Foundation, If one can, that is the only move to make
 
+        pendingMoves.clear();
         for (Card card : reserve)
             if (isMoveLegal(card, CardPosition.FOUNDATION)) {
                 pendingMoves.add(new Move(CardPosition.RESERVE, CardPosition.FOUNDATION, card));
@@ -386,6 +392,10 @@ public class Board {
                     pendingMoves.add(new Move(CardPosition.TABLEAU[i], CardPosition.RESERVE, card));
             }
         }
+
+        // Randomly shuffle the pending moves so that one end of the board does not get all the attention
+
+        Collections.shuffle(pendingMoves, random);
     }
 
     /**
@@ -397,17 +407,31 @@ public class Board {
     public String getSignature() {
 
         StringBuilder builder = new StringBuilder();
-        for (List<Card> pile : foundation.values())
+
+        // Foundation
+
+        for (Card.Suit suit : Card.SUITS) {
+            List<Card> pile =  foundation.get(suit);
             if (pile.isEmpty())
                 builder.append("B");
             else
                 pile.forEach(builder::append);
-        reserve.forEach(builder::append);
-        for (List<Card> column : tableau)
+        }
+        builder.append("|");
+
+        // Tableau
+
+        for (List<Card> column : tableau) {
             if (column.isEmpty())
                 builder.append("B");
             else
                 column.forEach(builder::append);
+            builder.append("|");
+        }
+
+        // Reserve
+
+        reserve.forEach(builder::append);
 
         return builder.toString();
     }

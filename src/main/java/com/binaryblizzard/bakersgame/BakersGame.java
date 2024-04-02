@@ -78,8 +78,21 @@ public class BakersGame {
 
                 if (nextBoard.gameIsWon()) {
                     LOG.info("Found a solution of length: " + nextBoard.getSolution().size());
-                    if ((solution == null) || (nextBoard.getSolution().size() < solution.size()))
+                    if ((solution == null) || (nextBoard.getSolution().size() < solution.size())) {
                         solution = new ArrayList<>(nextBoard.getSolution());
+                        if (solution.size() < 100) {
+                            dumpGameSolution(solution);
+                            return true;
+                        } else {
+
+                            // Reset
+
+                            previousBoards.clear();
+                            gameStates.clear();
+                            nextBoard = initialBoard;
+                            nextBoard.computePendingMoves();
+                        }
+                    }
                 }
 
                 // Have we seen this board before?
