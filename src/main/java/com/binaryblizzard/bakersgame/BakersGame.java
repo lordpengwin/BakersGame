@@ -1,10 +1,13 @@
 package com.binaryblizzard.bakersgame;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.util.*;
 import java.util.logging.Logger;
+
+/**
+ * This is a program that is given an initial deal for the Baker's Solitaire Game and will try to find solutions for
+ * it. It basically does a brute force search until a solution is found.
+ */
 
 public class BakersGame {
 
@@ -12,15 +15,15 @@ public class BakersGame {
 
     private static final Logger LOG = Logger.getLogger(BakersGame.class.getName());
 
-    /** The initial Baord. */
+    /** The initial Board. */
 
     private Board initialBoard;
 
-    /** A stack of boards and the moves that created them. */
+    /** A stack of boards that have are on the current path to the solution. */
 
     private Stack<Board> gameStates = new Stack<>();
 
-    /** A set of boards that we have already seen. */
+    /** A set of signatures for boards that we have already seen. */
 
     private Set<String> previousBoards = new HashSet<>();
 
@@ -53,9 +56,9 @@ public class BakersGame {
 
         Board currentBoard = initialBoard;
         previousBoards.add(currentBoard.getSignature());
-        BufferedReader stdin = new BufferedReader(new InputStreamReader(System.in));
+//        BufferedReader stdin = new BufferedReader(new InputStreamReader(System.in));
         int cnt = 0;
-        int skiped = 0;
+        int skipped = 0;
 
         // This is the main loop where we apply the next move to a board and check for a solution.
 
@@ -133,7 +136,7 @@ public class BakersGame {
 
                 // Yes so just skip the next board and continue with the current one
 
-                skiped++;
+                skipped++;
 
             // Output some information periodically
 
@@ -169,10 +172,10 @@ public class BakersGame {
             bakersGame.solveGame(150);
 
         } catch (Exception ex) {
+
             ex.printStackTrace();
             LOG.severe("Caught exception: " +  ex);
         }
-
     }
 }
 
