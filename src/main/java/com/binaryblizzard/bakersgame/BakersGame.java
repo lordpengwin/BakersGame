@@ -39,7 +39,16 @@ public class BakersGame {
         initialBoard = new Board(boardFile);
     }
 
-    public boolean solveGame() throws IOException {
+    /**
+     * Generate solutions for the Bakers Game. This will search the for shorter and shorter solutions. It will terminate
+     * when the a solution of the given limit is found.
+     *
+     * @param limit The target solution length
+     * @return true if a solution was found.
+     * @throws IOException If an error occurs
+     */
+
+    public boolean solveGame(int limit) throws IOException {
 
 
         Board currentBoard = initialBoard;
@@ -97,7 +106,7 @@ public class BakersGame {
 
                     // Quit it we reach a target length
 
-                    if (solution.size() < 130) {
+                    if (solution.size() < limit) {
                         return true;
                     }
                 }
@@ -157,7 +166,7 @@ public class BakersGame {
 
         try {
             BakersGame bakersGame = new BakersGame(args[0]);
-            bakersGame.solveGame();
+            bakersGame.solveGame(150);
 
         } catch (Exception ex) {
             ex.printStackTrace();
