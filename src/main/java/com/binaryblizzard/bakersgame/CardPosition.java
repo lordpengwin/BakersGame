@@ -30,6 +30,7 @@ public class CardPosition {
     /** The different areas on the board. */
 
     public enum Area {
+
         FOUNDATION("F"),
         TABLEAU("T"),
         RESERVE("R");

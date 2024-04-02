@@ -41,71 +41,92 @@ public class BakersGame {
 
     public boolean solveGame() throws IOException {
 
-        // Apply the next move to the board and push the result on the stack if the resulting board is a winner, dump the moves that got us there
 
         Board currentBoard = initialBoard;
         previousBoards.add(currentBoard.getSignature());
         BufferedReader stdin = new BufferedReader(new InputStreamReader(System.in));
         int cnt = 0;
         int skiped = 0;
+
+        // This is the main loop where we apply the next move to a board and check for a solution.
+
         while (true) {
 
+            // If there are no more moves with the current board, we have to the previous board on the stack. If we run out of boards we are done
 
-            // We have to avoid retrying boards that we have already seen
+            while (currentBoard.boardHasFailed())
+                if (gameStates.isEmpty()) {
 
-            boolean retry = true;
-            do {
+                    // We've searched the whole tree
 
-                // If there are no more moves with the current board, we have to rewind
-
-                while (currentBoard.boardHasFailed())
-                    if (gameStates.isEmpty()) {
-                        if (solution != null) {
-                            dumpGameSolution(solution);
-                            return true;
-                        }
-                        return false;
-                    } else {
-//                        LOG.info("Board has failed");
-                        currentBoard = gameStates.pop();
+                    if (solution != null) {
+                        LOG.info("Final solution");
+                        dumpGameSolution(solution);
+                        return true;
                     }
 
-                // Try the next move with the current board
+                    // We failed to find anything
 
-                Board nextBoard = currentBoard.applyNextMove();
+                    return false;
 
-                // See if we have won
+                } else {
 
-                if (nextBoard.gameIsWon()) {
-                    LOG.info("Found a solution of length: " + nextBoard.getSolution().size());
-                    if ((solution == null) || (nextBoard.getSolution().size() < solution.size())) {
-                        solution = new ArrayList<>(nextBoard.getSolution());
-                        if (solution.size() < 100) {
-                            dumpGameSolution(solution);
-                            return true;
-                        } else {
+                    // Just pop the previous board
 
-                            // Reset
+//                    LOG.info("Board has failed");
+                    currentBoard = gameStates.pop();
+                }
 
-                            previousBoards.clear();
-                            gameStates.clear();
-                            nextBoard = initialBoard;
-                            nextBoard.computePendingMoves();
-                        }
+            // Try the next move with the current board
+
+            Board nextBoard = currentBoard.applyNextMove();
+
+            // See if we have a solution
+
+            if (nextBoard.gameIsWon()) {
+
+                // Check to see if this is the shortest solution so far
+
+                if ((solution == null) || (nextBoard.getSolution().size() < solution.size())) {
+
+                    // Yes so save it and print it
+
+                    LOG.info("Found a solution of length: " + nextBoard.getSolution().size() + " shortest is " + (solution == null ? "" : solution.size()));
+                    solution = new ArrayList<>(nextBoard.getSolution());
+                    dumpGameSolution(solution);
+
+                    // Quit it we reach a target length
+
+                    if (solution.size() < 130) {
+                        return true;
                     }
                 }
 
-                // Have we seen this board before?
+                // Reset to the first board and keep looking for more
 
-                if (! previousBoards.contains(nextBoard.getSignature())) {
-                    gameStates.push(currentBoard);
-                    currentBoard = nextBoard;
-                    previousBoards.add(currentBoard.getSignature());
-                    retry = false;
-                } else
-                    skiped++;
-                   // LOG.info("Skipping " + nextBoard);
-            } while (retry);
+                previousBoards.clear();
+                gameStates.clear();
+                nextBoard = initialBoard;
+                nextBoard.computePendingMoves();
+            }
+
+            // Have we seen this board before?
+
+            if (! previousBoards.contains(nextBoard.getSignature())) {
+
+                // No so save the previous board on the stack and move forward with this one
+
+                gameStates.push(currentBoard);
+                currentBoard = nextBoard;
+                previousBoards.add(currentBoard.getSignature());
+
+            } else
+
+                // Yes so just skip the next board and continue with the current one
+
+                skiped++;
+
+            // Output some information periodically
 
 //            if (cnt++ % 100 == 0) {
 //                System.out.println(currentBoard.toString() + " stack depth: " + gameStates.size() + " cnt: " + cnt + " skipped: " + skiped);

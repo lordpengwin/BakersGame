@@ -40,10 +40,6 @@ public class Board {
 
     private final List<Move> pendingMoves = new ArrayList<>(110);
 
-    /** A list of moves that have been tried. */
-
-    private final List<Move> triedMoves = new ArrayList<>(110);
-
     /** The sequence of moves that produced this board. */
 
     private List<Move> solution = new ArrayList<>(110);
@@ -204,7 +200,6 @@ public class Board {
         if (pendingMoves.isEmpty())
             throw new IllegalStateException("Board has no more moves available");
         Move move = pendingMoves.remove(0);
-        triedMoves.add(move);
 //        LOG.info(move.toString());
 
         // Make a copy of this board
@@ -230,7 +225,7 @@ public class Board {
     }
 
     /**
-     * Check if a give card can be moved to a target position.
+     * Check if a given card can be moved to a target position.
      *
      * @param card The card to check
      * @param position The position to move it to
@@ -247,12 +242,14 @@ public class Board {
 
         } else if (position.getArea() == CardPosition.Area.FOUNDATION) {
 
-            // Check the last card in the foundation make sure it is the one lower than the new card
+            // Check the last card in the target foundation column to make sure it is the one lower than the new card
 
             List<Card> pile = foundation.get(card.getSuit());
             if (pile.isEmpty() && card.getRank() != Card.Rank.Ace)
                 return false;
+
             else if (! pile.isEmpty()) {
+
                 Card previous = pile.get(pile.size() - 1);
                 if (previous.getRank().getValue() != (card.getRank().getValue() - 1))
                     return false;
@@ -260,17 +257,18 @@ public class Board {
 
         } else {
 
-            // Check if we can add the card to the tableau
+            // Check if we can add the card to the tableau. The column must be empty or last card must have the same suit and be one higher than the card
 
             List<Card> column = tableau[position.getColumn()];
             if (! column.isEmpty()) {
+
                 Card previous = column.get(column.size() - 1);
                 if (previous.getSuit() != card.getSuit() || previous.getRank().getValue() != (card.getRank().getValue() + 1))
                     return false;
             }
         }
 
-        // It must be legal
+        // It must be a legal move
 
         return true;
     }
@@ -323,9 +321,12 @@ public class Board {
 
         if (! isMoveLegal(card, position))
             throw new IllegalStateException("It is illegal to move card: " + card + " to position: " + position);
+
+        // Add the card to the target postion
+
         if (position.getArea() == CardPosition.Area.RESERVE) {
 
-            // Add the card and re-sort the reserve
+            // Add the card and re-sort the reserve. This ensures that we don't waste moves targeting different slots when they all are equal
 
             reserve.add(card);
             Collections.sort(reserve);
@@ -352,9 +353,12 @@ public class Board {
 
     public void computePendingMoves() {
 
-        // Check each of the available cards to see if they can go in the Foundation, If one can, that is the only move to make
+        // Make sure that the list of moves is empty
 
         pendingMoves.clear();
+
+        // Check each of the available cards to see if they can go in the Foundation, If one can, that is the only move to make
+
         for (Card card : reserve)
             if (isMoveLegal(card, CardPosition.FOUNDATION)) {
                 pendingMoves.add(new Move(CardPosition.RESERVE, CardPosition.FOUNDATION, card));
@@ -382,24 +386,28 @@ public class Board {
         // Check if the tableau cards can move to the reserve or other tableau spots
 
         for (int i = 0; i < tableau.length; i++) {
+
             List<Card> column = tableau[i];
             if (! column.isEmpty()) {
+
                 Card card = column.get(column.size() - 1);
                 for (CardPosition cardPosition : CardPosition.TABLEAU)
                     if (isMoveLegal(card, cardPosition))
                         pendingMoves.add(new Move(CardPosition.TABLEAU[i], cardPosition, card));
+
                 if (isMoveLegal(card, CardPosition.RESERVE))
                     pendingMoves.add(new Move(CardPosition.TABLEAU[i], CardPosition.RESERVE, card));
             }
         }
 
-        // Randomly shuffle the pending moves so that one end of the board does not get all the attention
+        // Randomly shuffle the pending moves so that one end of the board does not get all the attention. This greatly
+        // improves the results
 
         Collections.shuffle(pendingMoves, random);
     }
 
     /**
-     * Create a signature for the board.
+     * Create a signature for the board. This is a string of characters that uniquely identifies the board state
      *
      * @return A unique signature for the board.
      */
@@ -435,6 +443,7 @@ public class Board {
 
         return builder.toString();
     }
+
     /** @see Object#toString() */
 
     @Override

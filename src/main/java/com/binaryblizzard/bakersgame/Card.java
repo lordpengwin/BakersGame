@@ -36,7 +36,7 @@ class Card implements Comparable<Card> {
 
             // Search the values for the one that matches the given short form
 
-            for (Suit value :values())
+            for (Suit value : values())
                 if (value.shortForm.equals(shortForm))
                     return value;
 
@@ -185,12 +185,15 @@ class Card implements Comparable<Card> {
 
         if (this.equals(that))
             return 0;
+
         else if (this.suit != that.suit) {
             if (this.suit.ordinal() < that.suit.ordinal())
                 return -1;
             else return 1;
+
         } else if (this.rank.value < that.rank.value)
             return -1;
+
         else
             return 1;
     }
