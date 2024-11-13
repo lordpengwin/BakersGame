@@ -9,17 +9,18 @@ import java.util.logging.Logger;
  * it. It basically does a brute force search until a solution is found.
  */
 
+@SuppressWarnings("ReassignedVariable")
 public class BakersGame {
 
     /** The logger for this class. */
 
     private static final Logger LOG = Logger.getLogger(BakersGame.class.getName());
 
-    /** The initial Board. */
+    /** The initial Board read from an input file. */
 
     private Board initialBoard;
 
-    /** A stack of boards that have are on the current path to the solution. */
+    /** A stack of boards that are on the current path to the solution. */
 
     private Stack<Board> gameStates = new Stack<>();
 
@@ -44,21 +45,22 @@ public class BakersGame {
 
     /**
      * Generate solutions for the Bakers Game. This will search the for shorter and shorter solutions. It will terminate
-     * when the a solution of the given limit is found.
+     * when there a solution of the given limit is found.
      *
      * @param limit The target solution length
+     * @param max The maximum number of solutions to stop after
      * @return true if a solution was found.
      * @throws IOException If an error occurs
      */
 
-    public boolean solveGame(int limit) throws IOException {
+    public boolean solveGame(int limit, int max) throws IOException {
 
 
         Board currentBoard = initialBoard;
         previousBoards.add(currentBoard.getSignature());
-//        BufferedReader stdin = new BufferedReader(new InputStreamReader(System.in));
         int cnt = 0;
         int skipped = 0;
+        int solutions = 0;
 
         // This is the main loop where we apply the next move to a board and check for a solution.
 
@@ -79,13 +81,13 @@ public class BakersGame {
 
                     // We failed to find anything
 
+                    System.out.println("Failed to find a solution");
                     return false;
 
                 } else {
 
                     // Just pop the previous board
 
-//                    LOG.info("Board has failed");
                     currentBoard = gameStates.pop();
                 }
 
@@ -99,19 +101,24 @@ public class BakersGame {
 
                 // Check to see if this is the shortest solution so far
 
+                solutions++;
+                if (solutions % 100 == 0)
+                    System.out.println("Found " + solutions + " solutions");
+
                 if ((solution == null) || (nextBoard.getSolution().size() < solution.size())) {
 
                     // Yes so save it and print it
 
-                    LOG.info("Found a solution of length: " + nextBoard.getSolution().size() + " shortest is " + (solution == null ? "" : solution.size()));
+                    LOG.info("Found solution #" + solutions + " of length " + nextBoard.getSolution().size() + ", previous shortest was " + (solution == null ? "" : solution.size()));
                     solution = new ArrayList<>(nextBoard.getSolution());
+                }
+
+                // Quit if we reach a target length or maximum solutions
+
+                if ((solution.size() < limit) || (solutions == max)) {
+                    System.out.println("Quitting after " + solutions + " solutions, shortest is " + solution.size());
                     dumpGameSolution(solution);
-
-                    // Quit it we reach a target length
-
-                    if (solution.size() < limit) {
-                        return true;
-                    }
+                    return true;
                 }
 
                 // Reset to the first board and keep looking for more
@@ -122,7 +129,7 @@ public class BakersGame {
                 nextBoard.computePendingMoves();
             }
 
-            // Have we seen this board before?
+            // Have we seen next board before?
 
             if (! previousBoards.contains(nextBoard.getSignature())) {
 
@@ -134,14 +141,14 @@ public class BakersGame {
 
             } else
 
-                // Yes so just skip the next board and continue with the current one
+                // Yes so just skip it and continue with the current one
 
                 skipped++;
 
             // Output some information periodically
 
 //            if (cnt++ % 100 == 0) {
-//                System.out.println(currentBoard.toString() + " stack depth: " + gameStates.size() + " cnt: " + cnt + " skipped: " + skiped);
+//                System.out.println(currentBoard.toString() + " stack depth: " + gameStates.size() + " cnt: " + cnt + " skipped: " + skipped);
 //                stdin.readLine();
 //            }
         }
@@ -168,8 +175,10 @@ public class BakersGame {
     public static void main(String[] args) {
 
         try {
+
             BakersGame bakersGame = new BakersGame(args[0]);
-            bakersGame.solveGame(150);
+            boolean success = bakersGame.solveGame(100, 10000);
+            System.exit(success ? 0 : 1);
 
         } catch (Exception ex) {
 

@@ -7,13 +7,7 @@ import com.google.gson.JsonParser;
 
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
+import java.util.*;
 import java.util.logging.Logger;
 
 /** A class representing the state of a Bakers Game board. */
@@ -28,7 +22,7 @@ public class Board {
 
     private final Map<Card.Suit, List<Card>> foundation = new HashMap<>();
 
-    /** The Tableau is the set oc columns (or cascades) that consist of the cards that can be arranged in descending order by suit. There are 8 cascades. */
+    /** The Tableau is the set of columns (or cascades) that consist of the cards that can be arranged in descending order by suit. There are 8 cascades. */
 
     private final ArrayList[] tableau = new ArrayList[8];
 
@@ -200,7 +194,6 @@ public class Board {
         if (pendingMoves.isEmpty())
             throw new IllegalStateException("Board has no more moves available");
         Move move = pendingMoves.remove(0);
-//        LOG.info(move.toString());
 
         // Make a copy of this board
 
@@ -237,8 +230,7 @@ public class Board {
         // The reserve must have an empty slot
 
         if ((position.getArea() == CardPosition.Area.RESERVE)) {
-            if (reserve.size() == 4)
-                return false;
+            return reserve.size() != 4;
 
         } else if (position.getArea() == CardPosition.Area.FOUNDATION) {
 
@@ -251,8 +243,7 @@ public class Board {
             else if (! pile.isEmpty()) {
 
                 Card previous = pile.get(pile.size() - 1);
-                if (previous.getRank().getValue() != (card.getRank().getValue() - 1))
-                    return false;
+                return previous.getRank().getValue() == (card.getRank().getValue() - 1);
             }
 
         } else {
@@ -263,14 +254,89 @@ public class Board {
             if (! column.isEmpty()) {
 
                 Card previous = column.get(column.size() - 1);
-                if (previous.getSuit() != card.getSuit() || previous.getRank().getValue() != (card.getRank().getValue() + 1))
-                    return false;
+                return previous.getSuit() == card.getSuit() && previous.getRank().getValue() == (card.getRank().getValue() + 1);
             }
         }
 
         // It must be a legal move
 
         return true;
+    }
+
+    /**
+     * Compute a set of heuristics that determine if a move is desirable or not
+     *
+     * @param card The card to be moved
+     * @param from The position the card is being moved from
+     * @param to The target position to move it to
+     * @return An amount to adjust the weight of the move by
+     */
+
+    private int computeHeuristics(Card card, CardPosition from, CardPosition to) {
+
+        int adjustment = 0;
+
+        // Moving a card into the reserve is less desirable as it uses up that space
+
+//        if ((to.getArea() == CardPosition.Area.RESERVE))
+//            adjustment--;
+
+        // Moves to the tableau
+
+        if (to.getArea() == CardPosition.Area.TABLEAU) {
+
+            // Get the target column
+
+            List<Card> column = tableau[to.getColumn()];
+            if (! column.isEmpty()) {
+
+                // Moving a card on top of the one above it in its suit is good
+
+                Card previous = column.get(column.size() - 1);
+                if (previous.getSuit() == card.getSuit() && previous.getRank().getValue() == (card.getRank().getValue() + 1))
+                    adjustment += 2;
+
+                // Moving a card on top of a lower card in the same suite is bad because it makes it hard to get that card
+
+                for (int i = column.size() - 1; i > 0; i--) {
+                    previous = column.get(i);
+                    if ((previous.getSuit() == card.getSuit()) && (previous.getRank().getValue() < card.getRank().getValue()))
+                        adjustment -= 2;
+                }
+
+//            } else
+//                adjustment--;
+            }
+        }
+
+        // Rules involving where the card is moved from
+
+        // Emptying a column is good unless we are moving to another empty column which is pointless
+
+        if ((from.getArea() == CardPosition.Area.TABLEAU) && (tableau[from.getColumn()].size() == 1)) {
+            if ((to.getArea() == CardPosition.Area.TABLEAU) && (! tableau[to.getColumn()].isEmpty()))
+                adjustment += 2;
+            else
+                adjustment += -5;
+        }
+
+        // Check the card that is getting uncovered
+
+        if (from.getArea() != CardPosition.Area.RESERVE) {
+            List<Card> column = tableau[from.getColumn()];
+            if (column.size() > 1) {
+                Card uncovered = column.get(column.size() - 2);
+
+                // Being able to move the uncovered card to the foundation is good
+
+                if (isMoveLegal(uncovered, CardPosition.FOUNDATION))
+                    adjustment += 2;
+            }
+        }
+
+        // Return the adjustment
+
+        return adjustment;
     }
 
     /**
@@ -380,8 +446,11 @@ public class Board {
 
         for (Card card : reserve)
             for (CardPosition position : CardPosition.TABLEAU)
-                if (isMoveLegal(card, position))
-                    pendingMoves.add(new Move(CardPosition.RESERVE, position, card));
+                if (isMoveLegal(card, position)) {
+                    Move move = new Move(CardPosition.RESERVE, position, card);
+                    move.updateWeight(computeHeuristics(card, CardPosition.RESERVE, position));
+                    pendingMoves.add(move);
+                }
 
         // Check if the tableau cards can move to the reserve or other tableau spots
 
@@ -392,11 +461,17 @@ public class Board {
 
                 Card card = column.get(column.size() - 1);
                 for (CardPosition cardPosition : CardPosition.TABLEAU)
-                    if (isMoveLegal(card, cardPosition))
-                        pendingMoves.add(new Move(CardPosition.TABLEAU[i], cardPosition, card));
+                    if (isMoveLegal(card, cardPosition)) {
+                        Move move = new Move(CardPosition.TABLEAU[i], cardPosition, card);
+                        move.updateWeight(computeHeuristics(move.getCard(), CardPosition.TABLEAU[i], cardPosition));
+                        pendingMoves.add(move);
+                    }
 
-                if (isMoveLegal(card, CardPosition.RESERVE))
-                    pendingMoves.add(new Move(CardPosition.TABLEAU[i], CardPosition.RESERVE, card));
+                if (isMoveLegal(card, CardPosition.RESERVE)) {
+                    Move move = new Move(CardPosition.TABLEAU[i], CardPosition.RESERVE, card);
+                    move.updateWeight(computeHeuristics(move.getCard(), CardPosition.TABLEAU[i], CardPosition.RESERVE));
+                    pendingMoves.add(move);
+                }
             }
         }
 
@@ -404,6 +479,16 @@ public class Board {
         // improves the results
 
         Collections.shuffle(pendingMoves, random);
+
+/*        pendingMoves.sort((move1, move2) -> {
+            if (move1.getWeight() > move2.getWeight())
+                return -1;
+            else if (move1.getWeight() < move2.getWeight())
+                return 1;
+            else return 0;
+        });*/
+//        System.out.println(pendingMoves);
+//        System.exit(0);
     }
 
     /**

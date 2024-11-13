@@ -18,6 +18,10 @@ public class Move {
 
     private Card card;
 
+    /** The weight of the move, positive is betterm negative is worse. */
+
+    private int weight = 0;
+
     /**
      * Create a move.
      *
@@ -63,6 +67,26 @@ public class Move {
         return card;
     }
 
+    /**
+     * Get the weight.
+     *
+     * @return the current weight
+     */
+
+    public int getWeight() {
+        return weight;
+    }
+
+    /**
+     * Update the weight by adding a value to it.
+     *
+     * @param updateAmount The amount to update the weight by
+     */
+
+    public void updateWeight(int updateAmount) {
+        this.weight += updateAmount;
+    }
+
     /** @see java.lang.Object#toString() */
 
     @Override
@@ -71,6 +95,7 @@ public class Move {
                 "from=" + from +
                 ", to=" + to +
                 ", card=" + card +
+                ", weight=" + weight +
                 '}';
     }
 }
