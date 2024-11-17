@@ -1,6 +1,9 @@
 package com.binaryblizzard.bakersgame;
 
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.logging.Logger;
 
@@ -16,21 +19,13 @@ public class BakersGame {
 
     private static final Logger LOG = Logger.getLogger(BakersGame.class.getName());
 
+    /** The name of the board. */
+
+    private final String boardName;
+
     /** The initial Board read from an input file. */
 
-    private Board initialBoard;
-
-    /** A stack of boards that are on the current path to the solution. */
-
-    private Stack<Board> gameStates = new Stack<>();
-
-    /** A set of signatures for boards that we have already seen. */
-
-    private Set<String> previousBoards = new HashSet<>();
-
-    /** The shortest solution. */
-
-    private List<Move> solution = null;
+    private final Board initialBoard;
 
     /**
      * Create a BakersGame solver.
@@ -40,33 +35,43 @@ public class BakersGame {
      */
 
     public BakersGame(String boardFile) throws IOException {
+
         initialBoard = new Board(boardFile);
+        boardName = Paths.get(boardFile).getFileName().toString().replaceFirst("[.][^.]+$", "");
+        LOG.info("Board name: " + boardName);
     }
 
     /**
      * Generate solutions for the Bakers Game. This will search the for shorter and shorter solutions. It will terminate
-     * when there a solution of the given limit is found.
+     * after the specified number is found.
      *
-     * @param limit The target solution length
-     * @param max The maximum number of solutions to stop after
+     * @param maxSolutions The maximum number of solutions to stop after
      * @return true if a solution was found.
      * @throws IOException If an error occurs
      */
 
-    public boolean solveGame(int limit, int max) throws IOException {
+    public boolean solveGame(int maxSolutions) throws IOException {
 
+        // Initialize the game data structures
 
-        Board currentBoard = initialBoard;
-        previousBoards.add(currentBoard.getSignature());
+        List<Move> solution = null;
+        Stack<Board> gameStates = new Stack<>();
+        Set<String> previousBoards = new HashSet<>();
+
+        // Some stats to collect
+
         int cnt = 0;
         int skipped = 0;
         int solutions = 0;
+
+        Board currentBoard = initialBoard;
+        previousBoards.add(currentBoard.getSignature());
 
         // This is the main loop where we apply the next move to a board and check for a solution.
 
         while (true) {
 
-            // If there are no more moves with the current board, we have to the previous board on the stack. If we run out of boards we are done
+            // If there are no more moves with the current board, we have to pop the previous board from the stack. If we run out of boards we are done
 
             while (currentBoard.boardHasFailed())
                 if (gameStates.isEmpty()) {
@@ -81,7 +86,7 @@ public class BakersGame {
 
                     // We failed to find anything
 
-                    System.out.println("Failed to find a solution");
+                    LOG.severe("Failed to find a solution");
                     return false;
 
                 } else {
@@ -103,7 +108,7 @@ public class BakersGame {
 
                 solutions++;
                 if (solutions % 100 == 0)
-                    System.out.println("Found " + solutions + " solutions");
+                    LOG.info("Found " + solutions + " solutions");
 
                 if ((solution == null) || (nextBoard.getSolution().size() < solution.size())) {
 
@@ -113,10 +118,10 @@ public class BakersGame {
                     solution = new ArrayList<>(nextBoard.getSolution());
                 }
 
-                // Quit if we reach a target length or maximum solutions
+                // Quit if we reach the maximum solutions
 
-                if ((solution.size() < limit) || (solutions == max)) {
-                    System.out.println("Quitting after " + solutions + " solutions, shortest is " + solution.size());
+                if (solutions == maxSolutions) {
+                    LOG.info("Quitting after " + solutions + " solutions, shortest is " + solution.size());
                     dumpGameSolution(solution);
                     return true;
                 }
@@ -148,7 +153,7 @@ public class BakersGame {
             // Output some information periodically
 
 //            if (cnt++ % 100 == 0) {
-//                System.out.println(currentBoard.toString() + " stack depth: " + gameStates.size() + " cnt: " + cnt + " skipped: " + skipped);
+//                LOG.info(currentBoard.toString() + " stack depth: " + gameStates.size() + " cnt: " + cnt + " skipped: " + skipped);
 //                stdin.readLine();
 //            }
         }
@@ -162,8 +167,18 @@ public class BakersGame {
 
     private void dumpGameSolution(List<Move> solution) {
 
-        for (Move move : solution)
-            System.out.println(move);
+        try {
+
+            // Dump the solution to a file
+
+            PrintWriter writer = new PrintWriter(new FileWriter(boardName + "-solution-" + solution.size()));
+            for (Move move : solution)
+                writer.println(move.toString());
+            writer.close();
+
+        } catch (IOException ioe) {
+            LOG.severe("Failed to write solution to file: " + ioe);
+        }
     }
 
     /**
@@ -174,10 +189,13 @@ public class BakersGame {
 
     public static void main(String[] args) {
 
+        // Configure the logger to use one line.
+
+        System.setProperty("java.util.logging.SimpleFormatter.format", "%1$tF %1$tT %4$s %2$s %5$s%6$s%n");
         try {
 
             BakersGame bakersGame = new BakersGame(args[0]);
-            boolean success = bakersGame.solveGame(100, 10000);
+            boolean success = bakersGame.solveGame(2000);
             System.exit(success ? 0 : 1);
 
         } catch (Exception ex) {

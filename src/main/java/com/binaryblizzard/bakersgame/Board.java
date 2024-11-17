@@ -1,5 +1,6 @@
 package com.binaryblizzard.bakersgame;
 
+import com.binaryblizzard.bakersgame.heuristics.*;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -12,6 +13,7 @@ import java.util.logging.Logger;
 
 /** A class representing the state of a Bakers Game board. */
 
+@SuppressWarnings({"rawtypes", "unchecked"})
 public class Board {
 
     /** The logger for this class. */
@@ -40,7 +42,20 @@ public class Board {
 
     /** A Random number used to shuffle lists. */
 
-    private Random random = new Random();
+    private final Random random = new Random();
+
+    /** A collection of heuristics used to evaluate moves. */
+
+    private final Heuristic[] heuristics = new Heuristic[]{
+            new TableauAddToSuit(),
+            new TableauCoverLowerCardOfSameSuit(),
+            new TableauEmptyAColumn(),
+            new TableauUncoverCardForFoundation(),
+            new TableauUnCoverLowerCardOfSameSuit(),
+            new ReserveEmptySlot(),
+            new TableauUncoverACardThatCanBeMoved(),
+            new ReserveEmptySlotForNextMove()
+    };
 
     /**
      * Create a Board.
@@ -99,8 +114,7 @@ public class Board {
         // Compute the possible moves for the board
 
         computePendingMoves();
-
-        LOG.info(this.toString());
+//        LOG.info(this.toString());
     }
 
     /**
@@ -121,8 +135,7 @@ public class Board {
 
         // Copy the Reserve
 
-        for (Card card : copyFrom.reserve)
-            reserve.add(card);
+        reserve.addAll(copyFrom.reserve);
 
         // And the Tableau
 
@@ -136,6 +149,16 @@ public class Board {
 
         solution = new ArrayList<>(copyFrom.solution);
         solution.add(move);
+    }
+
+    /**
+     * Get the Tableau section of the Board.
+     *
+     * @return The Tableau
+     */
+
+    public ArrayList[] getTableau() {
+        return tableau;
     }
 
     /**
@@ -221,40 +244,40 @@ public class Board {
      * Check if a given card can be moved to a target position.
      *
      * @param card The card to check
-     * @param position The position to move it to
+     * @param targetPosition The position to move it to
      * @return true if the move is legal, false otherwise
      */
 
-    private boolean isMoveLegal(Card card, CardPosition position) {
+    public boolean isMoveLegal(Card card, CardPosition targetPosition) {
 
         // The reserve must have an empty slot
 
-        if ((position.getArea() == CardPosition.Area.RESERVE)) {
+        if ((targetPosition.getArea() == CardPosition.Area.RESERVE)) {
             return reserve.size() != 4;
 
-        } else if (position.getArea() == CardPosition.Area.FOUNDATION) {
+        } else if (targetPosition.getArea() == CardPosition.Area.FOUNDATION) {
 
             // Check the last card in the target foundation column to make sure it is the one lower than the new card
 
             List<Card> pile = foundation.get(card.getSuit());
-            if (pile.isEmpty() && card.getRank() != Card.Rank.Ace)
+            if (pile.isEmpty() && (card.getRank() != Card.Rank.Ace))
                 return false;
 
             else if (! pile.isEmpty()) {
 
-                Card previous = pile.get(pile.size() - 1);
-                return previous.getRank().getValue() == (card.getRank().getValue() - 1);
+                Card topCard = pile.get(pile.size() - 1);
+                return topCard.getRank().getValue() == (card.getRank().getValue() - 1);
             }
 
         } else {
 
             // Check if we can add the card to the tableau. The column must be empty or last card must have the same suit and be one higher than the card
 
-            List<Card> column = tableau[position.getColumn()];
+            List<Card> column = tableau[targetPosition.getColumn()];
             if (! column.isEmpty()) {
 
-                Card previous = column.get(column.size() - 1);
-                return previous.getSuit() == card.getSuit() && previous.getRank().getValue() == (card.getRank().getValue() + 1);
+                Card lastCard = column.get(column.size() - 1);
+                return (lastCard.getSuit() == card.getSuit()) && (lastCard.getRank().getValue() == (card.getRank().getValue() + 1));
             }
         }
 
@@ -266,73 +289,15 @@ public class Board {
     /**
      * Compute a set of heuristics that determine if a move is desirable or not
      *
-     * @param card The card to be moved
-     * @param from The position the card is being moved from
-     * @param to The target position to move it to
+     * @param move The move to apply the heuristics to
      * @return An amount to adjust the weight of the move by
      */
 
-    private int computeHeuristics(Card card, CardPosition from, CardPosition to) {
+    private int computeHeuristics(Move move) {
 
         int adjustment = 0;
-
-        // Moving a card into the reserve is less desirable as it uses up that space
-
-//        if ((to.getArea() == CardPosition.Area.RESERVE))
-//            adjustment--;
-
-        // Moves to the tableau
-
-        if (to.getArea() == CardPosition.Area.TABLEAU) {
-
-            // Get the target column
-
-            List<Card> column = tableau[to.getColumn()];
-            if (! column.isEmpty()) {
-
-                // Moving a card on top of the one above it in its suit is good
-
-                Card previous = column.get(column.size() - 1);
-                if (previous.getSuit() == card.getSuit() && previous.getRank().getValue() == (card.getRank().getValue() + 1))
-                    adjustment += 2;
-
-                // Moving a card on top of a lower card in the same suite is bad because it makes it hard to get that card
-
-                for (int i = column.size() - 1; i > 0; i--) {
-                    previous = column.get(i);
-                    if ((previous.getSuit() == card.getSuit()) && (previous.getRank().getValue() < card.getRank().getValue()))
-                        adjustment -= 2;
-                }
-
-//            } else
-//                adjustment--;
-            }
-        }
-
-        // Rules involving where the card is moved from
-
-        // Emptying a column is good unless we are moving to another empty column which is pointless
-
-        if ((from.getArea() == CardPosition.Area.TABLEAU) && (tableau[from.getColumn()].size() == 1)) {
-            if ((to.getArea() == CardPosition.Area.TABLEAU) && (! tableau[to.getColumn()].isEmpty()))
-                adjustment += 2;
-            else
-                adjustment += -5;
-        }
-
-        // Check the card that is getting uncovered
-
-        if (from.getArea() != CardPosition.Area.RESERVE) {
-            List<Card> column = tableau[from.getColumn()];
-            if (column.size() > 1) {
-                Card uncovered = column.get(column.size() - 2);
-
-                // Being able to move the uncovered card to the foundation is good
-
-                if (isMoveLegal(uncovered, CardPosition.FOUNDATION))
-                    adjustment += 2;
-            }
-        }
+        for (Heuristic heuristic : heuristics)
+            adjustment += heuristic.evaluate(this, move);
 
         // Return the adjustment
 
@@ -448,7 +413,7 @@ public class Board {
             for (CardPosition position : CardPosition.TABLEAU)
                 if (isMoveLegal(card, position)) {
                     Move move = new Move(CardPosition.RESERVE, position, card);
-                    move.updateWeight(computeHeuristics(card, CardPosition.RESERVE, position));
+                    move.updateWeight(computeHeuristics(move));
                     pendingMoves.add(move);
                 }
 
@@ -463,30 +428,29 @@ public class Board {
                 for (CardPosition cardPosition : CardPosition.TABLEAU)
                     if (isMoveLegal(card, cardPosition)) {
                         Move move = new Move(CardPosition.TABLEAU[i], cardPosition, card);
-                        move.updateWeight(computeHeuristics(move.getCard(), CardPosition.TABLEAU[i], cardPosition));
+                        move.updateWeight(computeHeuristics(move));
                         pendingMoves.add(move);
                     }
 
                 if (isMoveLegal(card, CardPosition.RESERVE)) {
                     Move move = new Move(CardPosition.TABLEAU[i], CardPosition.RESERVE, card);
-                    move.updateWeight(computeHeuristics(move.getCard(), CardPosition.TABLEAU[i], CardPosition.RESERVE));
+                    move.updateWeight(computeHeuristics(move));
                     pendingMoves.add(move);
                 }
             }
         }
 
         // Randomly shuffle the pending moves so that one end of the board does not get all the attention. This greatly
-        // improves the results
+        // improves the results and I'm not sure why
 
         Collections.shuffle(pendingMoves, random);
 
-/*        pendingMoves.sort((move1, move2) -> {
-            if (move1.getWeight() > move2.getWeight())
-                return -1;
-            else if (move1.getWeight() < move2.getWeight())
-                return 1;
-            else return 0;
-        });*/
+        // Sort the moves by weight
+
+        pendingMoves.sort((move1, move2) -> {
+            return Integer.compare(move2.getWeight(), move1.getWeight());
+        });
+
 //        System.out.println(pendingMoves);
 //        System.exit(0);
     }

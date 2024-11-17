@@ -1,6 +1,6 @@
 package com.binaryblizzard.bakersgame;
 
-class Card implements Comparable<Card> {
+public class Card implements Comparable<Card> {
 
     /** Enum to represent a suit. */
 
@@ -48,7 +48,7 @@ class Card implements Comparable<Card> {
 
     /** Enum to represent the Rank of value of a card. */
 
-    enum Rank {
+    public enum Rank {
 
         Ace(1, "A"),
         Two(2, "2"),

@@ -48,7 +48,7 @@ public class CardPosition {
         Area(String shortForm) {
             this.shortForm = shortForm;
         }
-    };
+    }
 
     /** The Area that the card is in. */
 
@@ -66,6 +66,7 @@ public class CardPosition {
      */
 
     public CardPosition(Area area, int column) {
+
         this.area = area;
         this.column = column;
     }
@@ -77,6 +78,7 @@ public class CardPosition {
      */
 
     public CardPosition(Area area) {
+
         this.area = area;
         this.column = -1;
     }

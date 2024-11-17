@@ -8,17 +8,17 @@ public class Move {
 
     /** The location on the board that the card was moved from. */
 
-    private CardPosition from;
+    private final CardPosition from;
 
     /** The location on the board that the card is moving to. */
 
-    private CardPosition to;
+    private final CardPosition to;
 
     /** The card being moved. */
 
-    private Card card;
+    private final Card card;
 
-    /** The weight of the move, positive is betterm negative is worse. */
+    /** The weight of the move, positive is better, negative is worse. */
 
     private int weight = 0;
 

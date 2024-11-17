@@ -10,8 +10,8 @@
     <url>http://maven.apache.org</url>
 
     <properties>
-        <maven.compiler.source>12</maven.compiler.source>
-        <maven.compiler.target>12</maven.compiler.target>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
     </properties>
 
     <dependencies>
@@ -30,9 +30,9 @@
                 <version>3.2.0</version>
                 <configuration>
                     <mainClass>com.binaryblizzard.bakersgame.BakersGame</mainClass>
-                    <arguments>
-                        <argument>board.json</argument>
-                    </arguments>
+<!--                    <arguments>
+                        <argument>board6.json</argument>
+                    </arguments> -->
                 </configuration>
             </plugin>
         </plugins>
